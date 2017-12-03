@@ -75,25 +75,23 @@ int main(int argc, char const* const* argv)
 		std::cout << desc << std::endl;
 		return 0;
 	}
-	else {
-		Process proc;
-		proc.AddIsWait(vm.count("timeout"));
-		if (proc.CheckIsWait())
-			proc.setTimeout(vm["timeout"].as<size_t>());
-		proc.AddComand("cmake -H. -B_builds -DCMAKE_INSTALL_PREFIX=_install -DCMAKE_BUILD_TYPE=" + vm["config"].as<std::string>());
+	Process proc;
+	proc.AddIsWait(vm.count("timeout"));
+	if (proc.CheckIsWait())
+		proc.setTimeout(vm["timeout"].as<size_t>());
+	proc.AddComand("cmake -H. -B_builds -DCMAKE_INSTALL_PREFIX=_install -DCMAKE_BUILD_TYPE=" + vm["config"].as<std::string>());
+	proc.AllProcess();
+	if (proc.getExCd() == 0) {
+		proc.AddComand("cmake --build _builds");
 		proc.AllProcess();
-		if (proc.getExCd() == 0) {
-			proc.AddComand("cmake --build _builds");
-			proc.AllProcess();
-		}
-		if (proc.getExCd() == 0 && vm.count("pack")) {
-			proc.AddComand("cmake --build _builds --target package");
-			proc.AllProcess();
-		}
-		if (proc.getExCd() == 0 && vm.count("install")) {
-			proc.AddComand("cmake --build _builds --target install");
-			proc.AllProcess();
-		}
-		return proc.getExCd();
 	}
+	if (proc.getExCd() == 0 && vm.count("pack")) {
+		proc.AddComand("cmake --build _builds --target package");
+		proc.AllProcess();
+	}
+	if (proc.getExCd() == 0 && vm.count("install")) {
+		proc.AddComand("cmake --build _builds --target install");
+		proc.AllProcess();
+	}
+	return proc.getExCd();
 }
