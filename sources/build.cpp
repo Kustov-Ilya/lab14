@@ -6,7 +6,6 @@
 
 namespace po = boost::program_options;
 namespace bp = boost::process;
-namespace ch = std::chrono;
 
 class Process{
 	std::string Comand;
@@ -14,24 +13,6 @@ class Process{
 	bool isWait;
 	int exCd;
 
-	
-
-	void ProcessWithoutWait() {
-		bp::ipstream out;
-		bp::child Child(Comand, bp::std_out > out);
-		Child.wait();
-		exCd = Child.exit_code();
-	}
-
-
-	void ProcessWithWait(){
-		bp::ipstream out;
-		bp::child Child(Comand, bp::std_out > out);
-		ch::system_clock::time_point begin{ ch::system_clock::now() };
-		if (!c.wait_for(std::chrono::seconds(timeout)));
-		Child.terminate();
-		exCd = Child.exit_code();
-	}
 public:
 	Process() {
 		exCd = 1;
@@ -61,12 +42,16 @@ public:
 
 	void AllProcess()
 	{
+		bp::ipstream out;
+		bp::child Child(Comand, bp::std_out > out);
 		if (isWait) {
-			ProcessWithWait();
+			if (!c.wait_for(std::chrono::seconds(timeout)));
+			Child.terminate();
 		}
 		else {
-			ProcessWithoutWait();
+			Child.wait();
 		}
+		exCd = Child.exit_code();
 	}
 
 };
