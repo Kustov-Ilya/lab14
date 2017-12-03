@@ -27,19 +27,10 @@ class Process{
 	void ProcessWithWait(){
 		bp::ipstream out;
 		bp::child Child(Comand, bp::std_out > out);
-
 		ch::system_clock::time_point begin{ ch::system_clock::now() };
-		if (Child.wait_for(ch::seconds(timeout))) {
-			ch::system_clock::time_point end{ ch::system_clock::now() };
-			float dr{ ch::duration<float, std::ratio<1>>(end - begin).count() };
-			timeout -= std::min(static_cast<size_t>(round(dr)), timeout);
-		}
-		else {
-			Child.terminate();
-			timeout = 0;
-		}
-
-		exCd = (timeout ==0)?1: Child.exit_code();
+		if (!c.wait_for(std::chrono::seconds(timeout)));
+		Child.terminate();
+		exCd = Child.exit_code();
 	}
 public:
 	Process() {
