@@ -4,10 +4,10 @@
 #include <boost/program_options.hpp>
 #include <boost/process.hpp>
 
-
 namespace po = boost::program_options;
 namespace bp = boost::process;
 namespace ch = std::chrono;
+
 struct Process{
 	std::string Comand;
 	size_t Wait;
