@@ -8,62 +8,73 @@ namespace po = boost::program_options;
 namespace bp = boost::process;
 namespace ch = std::chrono;
 
-struct Process{
+class Process{
 	std::string Comand;
-	size_t Wait;
+	size_t timeout;
 	bool isWait;
 	int exCd;
 
-	Process() {
-		exCd = 1;
-		isWait = false;
-		Wait = 0;
-	}
+	
 
-	void StartProcessWithoutWait() {
+	void ProcessWithoutWait() {
 		bp::ipstream out;
 		bp::child Child(Comand, bp::std_out > out);
-		{
-			std::string line;
-			while (out && std::getline(out, line) && !line.empty())
-				std::cout << line << std::endl;
-		}
 		Child.wait();
 		exCd = Child.exit_code();
 	}
 
 
-	void StartProcessWithWait(){
+	void ProcessWithWait(){
 		bp::ipstream out;
 		bp::child Child(Comand, bp::std_out > out);
 
 		ch::system_clock::time_point begin{ ch::system_clock::now() };
-		if (Child.wait_for(ch::seconds(Wait))) {
+		if (Child.wait_for(ch::seconds(timeout))) {
 			ch::system_clock::time_point end{ ch::system_clock::now() };
 			float dr{ ch::duration<float, std::ratio<1>>(end - begin).count() };
-			Wait -= std::min(static_cast<size_t>(round(dr)), Wait);
+			timeout -= std::min(static_cast<size_t>(round(dr)), timeout);
 		}
 		else {
 			Child.terminate();
-			Wait = 0;
+			timeout = 0;
 		}
 
-		{
-			std::string line;
-			while (out && std::getline(out, line) && !line.empty())
-				std::cout << line << std::endl;
-		}
-
-		exCd = (Wait==0)?1: Child.exit_code();
+		exCd = (timeout ==0)?1: Child.exit_code();
+	}
+public:
+	Process() {
+		exCd = 1;
+		isWait = false;
+		timeout = 0;
 	}
 
-	void StartProcess()
+	void AddComand(std::string str) {
+		Comand = str;
+	}
+
+	void AddIsWait(bool is) {
+		isWait = is;
+	}
+
+	bool CheckIsWait() {
+		return isWait;
+	}
+
+	void setTimeout(size_t time) {
+		timeout = time;
+	}
+
+	int getExCd() {
+		return exCd;
+	}
+
+	void AllProcess()
 	{
 		if (isWait) {
-			StartProcessWithWait();
+			ProcessWithWait();
 		}
 		else {
-			StartProcessWithoutWait();
+			ProcessWithoutWait();
 		}
 	}
 
@@ -76,8 +87,8 @@ int main(int argc, char const* const* argv)
 		("help", "help")
 		("config", po::value<std::string>()->default_value("Debug"), "Сonfiguration")
 		("install", "add install params")
-		("package", "add packaging")
-		("wait", po::value<size_t>(), "set timer")
+		("pack", "add packaging")
+		("timeout", po::value<size_t>(), "set timer")
 		;
 
 	po::variables_map vm;
@@ -90,24 +101,23 @@ int main(int argc, char const* const* argv)
 	}
 	else {
 		Process proc;
-		proc.isWait = vm.count("wait");
-		if (proc.isWait) {
-			proc.Wait = vm["wait"].as<size_t>();
+		proc.AddIsWait(vm.count("timeout"));
+		if (proc.CheckIsWait())
+			proc.setTimeout(vm["timeout"].as<size_t>());
+		proc.AddComand("cmake -H. -B_builds -DCMAKE_INSTALL_PREFIX=_install -DCMAKE_BUILD_TYPE=" + vm["config"].as<std::string>());
+		proc.AllProcess();
+		if (proc.getExCd() == 0) {
+			proc.AddComand("cmake --build _builds");
+			proc.AllProcess();
 		}
-		proc.Comand = "cmake -H. -B_builds -DCMAKE_INSTALL_PREFIX=_install -DCMAKE_BUILD_TYPE=" + vm["config"].as<std::string>();
-		proc.StartProcess();
-		if (proc.exCd == 0) {
-			proc.Comand = "cmake --build _builds";
-			proc.StartProcess();
+		if (proc.getExCd() == 0 && vm.count("pack")) {
+			proc.AddComand("cmake --build _builds --target package");
+			proc.AllProcess();
 		}
-		if (proc.exCd == 0 && vm.count("package")) {
-			proc.Comand = "cmake --build _builds --target package";
-			proc.StartProcess();
+		if (proc.getExCd() == 0 && vm.count("install")) {
+			proc.AddComand("cmake --build _builds --target install");
+			proc.AllProcess();
 		}
-		if (proc.exCd == 0 && vm.count("install")) {
-			proc.Comand = "cmake --build _builds --target install";
-			proc.StartProcess();
-		}
-		return proc.exCd;
+		return proc.getExCd();
 	}
 }
